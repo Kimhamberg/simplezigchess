@@ -3,6 +3,7 @@ const squaresBetweenEmpty = @import("utils.zig").squaresBetweenEmpty;
 const addMove = @import("utils.zig").addMove;
 const getBoard = @import("utils.zig").getBoard;
 const print = @import("std").debug.print;
+const inCheckAfterMove = @import("check.zig").inCheckAfterMove;
 
 pub const Type = enum { Pawn, Knight, Bishop, Rook, Queen, King };
 pub const Color = enum { White, Black };
@@ -153,18 +154,17 @@ fn getPawnMoves(self: *MoveGenerator, square: Square, piece: Piece) void {
     const oneStepSquare = Square{ .column = square.column, .row = square.row + oneStep };
     if (moveInBounds(oneStepSquare)) {
         const oneStepMove = Move{ .from = square, .to = oneStepSquare, .movingPiece = piece, .landingSquare = getBoard(self, oneStepSquare) };
-        if (oneStepMove.landingSquare == null) {
+        if (oneStepMove.landingSquare == null and !inCheckAfterMove(self, oneStepMove)) {
             addMove(self, oneStepMove);
-        }
-    }
-
-    const twoStep: i64 = if (self.playerColor == Color.White) 2 else -2;
-    const twoStepSquare = Square{ .column = square.column, .row = square.row + twoStep };
-    if (moveInBounds(twoStepSquare)) {
-        const twoStepMove = Move{ .from = square, .to = twoStepSquare, .movingPiece = piece, .landingSquare = getBoard(self, twoStepSquare) };
-        const isStartingRow = if (self.playerColor == Color.White) square.row == 1 else square.row == 6;
-        if (twoStepMove.landingSquare == null and isStartingRow) {
-            addMove(self, twoStepMove);
+            const twoStep: i64 = if (self.playerColor == Color.White) 2 else -2;
+            const twoStepSquare = Square{ .column = square.column, .row = square.row + twoStep };
+            if (moveInBounds(twoStepSquare)) {
+                const twoStepMove = Move{ .from = square, .to = twoStepSquare, .movingPiece = piece, .landingSquare = getBoard(self, twoStepSquare) };
+                const isStartingRow = if (self.playerColor == Color.White) square.row == 1 else square.row == 6;
+                if (twoStepMove.landingSquare == null and isStartingRow and !inCheckAfterMove(self, twoStepMove)) {
+                    addMove(self, twoStepMove);
+                }
+            }
         }
     }
 
@@ -172,17 +172,19 @@ fn getPawnMoves(self: *MoveGenerator, square: Square, piece: Piece) void {
     if (moveInBounds(diagonalLeftSquare)) {
         const diagonalLeftMove = Move{ .from = square, .to = diagonalLeftSquare, .movingPiece = piece, .landingSquare = getBoard(self, diagonalLeftSquare) };
         if (diagonalLeftMove.landingSquare) |capturedPiece| {
-            if (capturedPiece.color != self.playerColor) {
+            if (capturedPiece.color != self.playerColor and !inCheckAfterMove(self, diagonalLeftMove)) {
                 addMove(self, diagonalLeftMove);
             }
         } else if (self.lastMove) |move| {
-            const twoOppositeStep = -twoStep;
+            const twoOppositeStep = -2 * oneStep;
             if (move.movingPiece.type == Type.Pawn and
                 (square.column - 1) == move.to.column and
                 (move.from.row + twoOppositeStep) == square.row)
             {
                 const leftPassant = Move{ .from = square, .to = diagonalLeftSquare, .movingPiece = piece, .landingSquare = null, .enPassantSquare = move.to };
-                addMove(self, leftPassant);
+                if (!inCheckAfterMove(self, leftPassant)) {
+                    addMove(self, leftPassant);
+                }
             }
         }
     }
@@ -190,17 +192,19 @@ fn getPawnMoves(self: *MoveGenerator, square: Square, piece: Piece) void {
     if (moveInBounds(diagonalRightSquare)) {
         const diagonalRightMove = Move{ .from = square, .to = diagonalRightSquare, .movingPiece = piece, .landingSquare = getBoard(self, diagonalRightSquare) };
         if (diagonalRightMove.landingSquare) |capturedPiece| {
-            if (capturedPiece.color != self.playerColor) {
+            if (capturedPiece.color != self.playerColor and !inCheckAfterMove(self, diagonalRightMove)) {
                 addMove(self, diagonalRightMove);
             }
         } else if (self.lastMove) |move| {
-            const twoOppositeStep = -twoStep;
+            const twoOppositeStep = -2 * oneStep;
             if (move.movingPiece.type == Type.Pawn and
                 (square.column + 1) == move.to.column and
                 (move.from.row + twoOppositeStep) == square.row)
             {
                 const rightPassant = Move{ .from = square, .to = diagonalRightSquare, .movingPiece = piece, .landingSquare = null, .enPassantSquare = move.to };
-                addMove(self, rightPassant);
+                if (!inCheckAfterMove(self, rightPassant)) {
+                    addMove(self, rightPassant);
+                }
             }
         }
     }

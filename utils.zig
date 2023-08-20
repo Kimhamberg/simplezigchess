@@ -80,6 +80,6 @@ fn setBoard(self: *MoveGenerator, square: Square, piece: ?Piece) void {
     self.board[@intCast(square.row)][@intCast(square.column)] = piece;
 }
 
-pub fn getBoard(self: *MoveGenerator, square: Square) Square {
+pub fn getBoard(self: *MoveGenerator, square: Square) ?Piece {
     return self.board[@intCast(square.row)][@intCast(square.column)];
 }

@@ -12,7 +12,7 @@ const pieceIsMyKing = @import("utils.zig").pieceIsMyKing;
 const makeMove = @import("utils.zig").makeMove;
 const undoMove = @import("utils.zig").undoMove;
 
-pub fn movePutsYouInCheck(self: *MoveGenerator, move: Move) bool {
+pub fn inCheckAfterMove(self: *MoveGenerator, move: Move) bool {
     makeMove(self, move);
     const opponentGivesCheck = opponentDoesCheck(self);
     undoMove(self, move);
