@@ -3,7 +3,6 @@ const expect = std.testing.expect;
 const assert = std.testing.assert;
 const MoveGenerator = @import("generation.zig").MoveGenerator;
 const setupBoard = @import("generation.zig").setupBoard;
-const 
 const Color = @import("generation.zig").Color;
 const Move = @import("generation.zig").Move;
 
