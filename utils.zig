@@ -83,3 +83,77 @@ fn setBoard(self: *MoveGenerator, square: Square, piece: ?Piece) void {
 pub fn getBoard(self: *MoveGenerator, square: Square) ?Piece {
     return self.board[@intCast(square.row)][@intCast(square.column)];
 }
+
+pub fn setupFromFEN(self: *MoveGenerator, fen: []const u8) void {
+    var iRow: usize = 7;
+    var iColumn: usize = 0;
+
+    var iFEN: usize = 0;
+    while (fen[iFEN] != ' ' and iFEN < fen.len) {
+        switch (fen[iFEN]) {
+            '1'...'8' => {
+                const skip = fen[iFEN] - '0';
+                for (0..skip) |_| {
+                    self.board[iRow][iColumn] = null;
+                    iColumn += 1;
+                }
+            },
+            'r' => {
+                self.board[iRow][iColumn] = Piece{ .type = Type.Rook, .color = Color.Black };
+                iColumn += 1;
+            },
+            'n' => {
+                self.board[iRow][iColumn] = Piece{ .type = Type.Knight, .color = Color.Black };
+                iColumn += 1;
+            },
+            'b' => {
+                self.board[iRow][iColumn] = Piece{ .type = Type.Bishop, .color = Color.Black };
+                iColumn += 1;
+            },
+            'q' => {
+                self.board[iRow][iColumn] = Piece{ .type = Type.Queen, .color = Color.Black };
+                iColumn += 1;
+            },
+            'k' => {
+                self.board[iRow][iColumn] = Piece{ .type = Type.King, .color = Color.Black };
+                iColumn += 1;
+            },
+            'p' => {
+                self.board[iRow][iColumn] = Piece{ .type = Type.Pawn, .color = Color.Black };
+                iColumn += 1;
+            },
+            'R' => {
+                self.board[iRow][iColumn] = Piece{ .type = Type.Rook, .color = Color.White };
+                iColumn += 1;
+            },
+            'N' => {
+                self.board[iRow][iColumn] = Piece{ .type = Type.Knight, .color = Color.White };
+                iColumn += 1;
+            },
+            'B' => {
+                self.board[iRow][iColumn] = Piece{ .type = Type.Bishop, .color = Color.White };
+                iColumn += 1;
+            },
+            'Q' => {
+                self.board[iRow][iColumn] = Piece{ .type = Type.Queen, .color = Color.White };
+                iColumn += 1;
+            },
+            'K' => {
+                self.board[iRow][iColumn] = Piece{ .type = Type.King, .color = Color.White };
+                iColumn += 1;
+            },
+            'P' => {
+                self.board[iRow][iColumn] = Piece{ .type = Type.Pawn, .color = Color.White };
+                iColumn += 1;
+            },
+            '/' => {
+                iRow -= 1;
+                iColumn = 0;
+            },
+            else => unreachable,
+        }
+        iFEN += 1;
+    }
+
+    // Optionally, you can also handle other parts of FEN such as the active color, castling availability, en passant target square, half-move clock, and full-move number.
+}
