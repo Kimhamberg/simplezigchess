@@ -1,4 +1,4 @@
-const MoveGenerator = @import("generation.zig").MoveGenerator;
+const MoveGenerator = @import("generation.zig").MoveManager;
 const Color = @import("generation.zig").Color;
 const Square = @import("generation.zig").Square;
 const Piece = @import("generation.zig").Piece;
