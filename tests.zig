@@ -9,7 +9,7 @@ const Move = @import("generation.zig").Move;
 var moveGenerator = MoveGenerator{ .board = undefined, .iMove = undefined, .playerColor = Color.White, .playerMoves = [_]Move{undefined} ** 256 };
 
 test "Ensure valid moves for pawn" {
-    
+
     // expect(moveGenerator.playerMoves[0].from == some_expected_value);
 }
 
