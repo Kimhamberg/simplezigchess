@@ -8,10 +8,10 @@ const inCheckAfterMove = @import("check.zig").inCheckAfterMove;
 
 pub const Type = enum { Pawn, Knight, Bishop, Rook, Queen, King };
 pub const Color = enum { White, Black };
-pub const Piece = struct { type: Type, color: Color, hasMoved: bool = false };
+pub const Piece = struct { type: Type, color: Color };
 pub const Board = [8][8]?Piece;
 
-pub fn setupBoard(self: *MoveGenerator) void {
+pub fn setupBoard(self: *MoveManager) void {
     self.board[0][0] = Piece{ .type = Type.Rook, .color = Color.White }; // a1
     self.board[0][1] = Piece{ .type = Type.Knight, .color = Color.White }; // b1
     self.board[0][2] = Piece{ .type = Type.Bishop, .color = Color.White }; // c1
@@ -21,23 +21,59 @@ pub fn setupBoard(self: *MoveGenerator) void {
     self.board[0][6] = Piece{ .type = Type.Knight, .color = Color.White }; // g1
     self.board[0][7] = Piece{ .type = Type.Rook, .color = Color.White }; // h1
 
-    var iColumn: usize = 0;
-    while (iColumn < 8) : (iColumn += 1) {
-        self.board[1][iColumn] = Piece{ .type = Type.Pawn, .color = Color.White };
-    }
+    self.board[1][0] = Piece{ .type = Type.Pawn, .color = Color.White };
+    self.board[1][1] = Piece{ .type = Type.Pawn, .color = Color.White };
+    self.board[1][2] = Piece{ .type = Type.Pawn, .color = Color.White };
+    self.board[1][3] = Piece{ .type = Type.Pawn, .color = Color.White };
+    self.board[1][4] = Piece{ .type = Type.Pawn, .color = Color.White };
+    self.board[1][5] = Piece{ .type = Type.Pawn, .color = Color.White };
+    self.board[1][6] = Piece{ .type = Type.Pawn, .color = Color.White };
+    self.board[1][7] = Piece{ .type = Type.Pawn, .color = Color.White };
 
-    var iRow: usize = 2;
-    while (iRow < 6) : (iRow += 1) {
-        iColumn = 0;
-        while (iColumn < 8) : (iColumn += 1) {
-            self.board[iRow][iColumn] = null;
-        }
-    }
+    self.board[2][0] = null;
+    self.board[2][1] = null;
+    self.board[2][2] = null;
+    self.board[2][3] = null;
+    self.board[2][4] = null;
+    self.board[2][5] = null;
+    self.board[2][6] = null;
+    self.board[2][7] = null;
 
-    iColumn = 0;
-    while (iColumn < 8) : (iColumn += 1) {
-        self.board[6][iColumn] = Piece{ .type = Type.Pawn, .color = Color.Black };
-    }
+    self.board[3][0] = null;
+    self.board[3][1] = null;
+    self.board[3][2] = null;
+    self.board[3][3] = null;
+    self.board[3][4] = null;
+    self.board[3][5] = null;
+    self.board[3][6] = null;
+    self.board[3][7] = null;
+
+    self.board[4][0] = null;
+    self.board[4][1] = null;
+    self.board[4][2] = null;
+    self.board[4][3] = null;
+    self.board[4][4] = null;
+    self.board[4][5] = null;
+    self.board[4][6] = null;
+    self.board[4][7] = null;
+
+    self.board[5][0] = null;
+    self.board[5][1] = null;
+    self.board[5][2] = null;
+    self.board[5][3] = null;
+    self.board[5][4] = null;
+    self.board[5][5] = null;
+    self.board[5][6] = null;
+    self.board[5][7] = null;
+
+    self.board[6][0] = Piece{ .type = Type.Pawn, .color = Color.Black };
+    self.board[6][1] = Piece{ .type = Type.Pawn, .color = Color.Black };
+    self.board[6][2] = Piece{ .type = Type.Pawn, .color = Color.Black };
+    self.board[6][3] = Piece{ .type = Type.Pawn, .color = Color.Black };
+    self.board[6][4] = Piece{ .type = Type.Pawn, .color = Color.Black };
+    self.board[6][5] = Piece{ .type = Type.Pawn, .color = Color.Black };
+    self.board[6][6] = Piece{ .type = Type.Pawn, .color = Color.Black };
+    self.board[6][7] = Piece{ .type = Type.Pawn, .color = Color.Black };
 
     self.board[7][0] = Piece{ .type = Type.Rook, .color = Color.Black }; // a8
     self.board[7][1] = Piece{ .type = Type.Knight, .color = Color.Black }; // b8
@@ -114,15 +150,27 @@ pub const Move = struct {
     enPassantSquare: ?Square = null,
 };
 
-pub const MoveGenerator = struct {
-    board: Board,
+pub const MoveManager = struct {
     playerColor: Color,
     playerMoves: [256]Move,
     iMove: *usize,
     lastMove: ?Move = null,
 };
 
-pub fn getPlayerMoves(self: *MoveGenerator) void {
+pub const GameState = struct {
+    board: Board,
+    toMove: Color,
+    canWhiteShortCastle: bool,
+    canWhiteLongCastle: bool,
+    canBlackShortCastle: bool,
+    canBlackLongCastle: bool,
+    enPassantSquare: ?Square = null,
+    halfMoveClock: usize,
+    fullMoveNumber: usize,
+    moveManager: MoveManager,
+};
+
+pub fn getPlayerMoves(self: *MoveManager) void {
     var index: usize = 0;
     self.iMove = &index;
     for (self.board, 0..) |row, iRow| {
@@ -136,7 +184,7 @@ pub fn getPlayerMoves(self: *MoveGenerator) void {
     }
 }
 
-pub fn getPieceMoves(self: *MoveGenerator, square: Square, piece: Piece) void {
+pub fn getPieceMoves(self: *MoveManager, square: Square, piece: Piece) void {
     switch (piece.type) {
         Type.Pawn => return getPawnMoves(self, square, piece),
         Type.Knight => return getKnightMoves(self, square, piece),
@@ -147,7 +195,7 @@ pub fn getPieceMoves(self: *MoveGenerator, square: Square, piece: Piece) void {
     }
 }
 
-fn getPawnMoves(self: *MoveGenerator, square: Square, piece: Piece) void {
+fn getPawnMoves(self: *MoveManager, square: Square, piece: Piece) void {
     const oneStep: i64 = if (self.playerColor == Color.White) 1 else -1;
     const oneStepSquare = Square{ .column = square.column, .row = square.row + oneStep };
     if (moveInBounds(oneStepSquare)) {
@@ -208,14 +256,14 @@ fn getPawnMoves(self: *MoveGenerator, square: Square, piece: Piece) void {
     }
 }
 
-fn getKnightMoves(self: *MoveGenerator, square: Square, piece: Piece) void {
+fn getKnightMoves(self: *MoveManager, square: Square, piece: Piece) void {
     for (PieceMoves.Knight) |knightMove| {
         const targetSquare = Square{ .column = square.column + knightMove.column, .row = square.row + knightMove.row };
         if (moveInBounds(targetSquare)) {
             const move = Move{ .from = square, .to = targetSquare, .movingPiece = piece, .landingSquare = getBoard(self, targetSquare) };
             if (move.landingSquare) |toPiece| {
                 if (toPiece.color == self.playerColor) {
-                    continue; // skip under
+                    continue;
                 }
             }
             if (!movePutsYouInCheck(self, move)) {
@@ -225,7 +273,7 @@ fn getKnightMoves(self: *MoveGenerator, square: Square, piece: Piece) void {
     }
 }
 
-fn getBRQMoves(self: *MoveGenerator, square: Square, piece: Piece, pieceMoves: []const Step) void {
+fn getBRQMoves(self: *MoveManager, square: Square, piece: Piece, pieceMoves: []const Step) void {
     for (pieceMoves) |pieceMove| {
         var targetSquare = Square{ .column = square.column + pieceMove.column, .row = square.row + pieceMove.row };
         while (moveInBounds(targetSquare)) {
@@ -244,7 +292,7 @@ fn getBRQMoves(self: *MoveGenerator, square: Square, piece: Piece, pieceMoves: [
     }
 }
 
-fn getKingMoves(self: *MoveGenerator, square: Square, piece: Piece) void {
+fn getKingMoves(self: *MoveManager, square: Square, piece: Piece) void {
     for (PieceMoves.King) |kingMove| {
         const targetSquare = Square{ .column = square.column + kingMove.column, .row = square.row + kingMove.row };
         if (moveInBounds(targetSquare)) {

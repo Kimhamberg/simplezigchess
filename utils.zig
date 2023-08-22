@@ -4,7 +4,7 @@ const Square = @import("generation.zig").Square;
 const Step = @import("generation.zig").Step;
 const Type = @import("generation.zig").Type;
 const Color = @import("generation.zig").Color;
-const MoveGenerator = @import("generation.zig").MoveGenerator;
+const MoveGenerator = @import("generation.zig").MoveManager;
 
 pub fn oppositeColor(color: Color) Color {
     switch (color) {
