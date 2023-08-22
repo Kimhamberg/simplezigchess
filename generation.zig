@@ -8,9 +8,7 @@ const inCheckAfterMove = @import("check.zig").inCheckAfterMove;
 
 pub const Type = enum { Pawn, Knight, Bishop, Rook, Queen, King };
 pub const Color = enum { White, Black };
-
 pub const Piece = struct { type: Type, color: Color, hasMoved: bool = false };
-
 pub const Board = [8][8]?Piece;
 
 pub fn setupBoard(self: *MoveGenerator) void {
@@ -41,7 +39,6 @@ pub fn setupBoard(self: *MoveGenerator) void {
         self.board[6][iColumn] = Piece{ .type = Type.Pawn, .color = Color.Black };
     }
 
-    // Eight Row
     self.board[7][0] = Piece{ .type = Type.Rook, .color = Color.Black }; // a8
     self.board[7][1] = Piece{ .type = Type.Knight, .color = Color.Black }; // b8
     self.board[7][2] = Piece{ .type = Type.Bishop, .color = Color.Black }; // c8
