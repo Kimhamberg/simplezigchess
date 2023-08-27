@@ -5,6 +5,7 @@ const Piece = @import("generation.zig").Piece;
 const Type = @import("generation.zig").Type;
 const Move = @import("generation.zig").Move;
 const Step = @import("generation.zig").Step;
+const Game = @import("generation.zig").Position;
 const getBoard = @import("utils.zig").getBoard;
 const PieceMoves = @import("generation.zig").PieceMoves;
 const moveInBounds = @import("utils.zig").moveInBounds;
@@ -12,20 +13,20 @@ const pieceIsMyKing = @import("utils.zig").pieceIsMyKing;
 const makeMove = @import("utils.zig").makeMove;
 const undoMove = @import("utils.zig").undoMove;
 
-pub fn inCheckAfterMove(self: *MoveGenerator, move: Move) bool {
+pub fn inCheckAfterMove(self: *Game, move: Move) bool {
     makeMove(self, move);
     const opponentGivesCheck = opponentDoesCheck(self);
     undoMove(self, move);
     return opponentGivesCheck;
 }
 
-pub fn opponentDoesCheck(self: *MoveGenerator) bool {
+pub fn opponentDoesCheck(self: *Game) bool {
     var index: usize = 0;
-    self.iMove = &index;
+    self.moveManager.iMove = &index;
     for (self.board, 0..) |row, iRow| {
         for (row, 0..) |possiblePiece, iColumn| {
             if (possiblePiece) |piece| {
-                if (piece.color != self.playerColor) {
+                if (piece.color != self.moveManager.playerColor) {
                     if (pieceDoesCheck(self, Square{ .column = @intCast(iColumn), .row = @intCast(iRow) }, piece)) {
                         return true;
                     }
@@ -36,7 +37,7 @@ pub fn opponentDoesCheck(self: *MoveGenerator) bool {
     return false;
 }
 
-fn pieceDoesCheck(self: *MoveGenerator, square: Square, piece: Piece) bool {
+fn pieceDoesCheck(self: *Game, square: Square, piece: Piece) bool {
     switch (piece.type) {
         Type.Pawn => if (pawnDoesCheck(self, square)) {
             return true;
@@ -60,8 +61,8 @@ fn pieceDoesCheck(self: *MoveGenerator, square: Square, piece: Piece) bool {
     return false;
 }
 
-fn pawnDoesCheck(self: *MoveGenerator, square: Square) bool {
-    const oneStep: i64 = if (self.playerColor == Color.White) 1 else -1;
+fn pawnDoesCheck(self: *Game, square: Square) bool {
+    const oneStep: i64 = if (self.moveManager.playerColor == Color.White) 1 else -1;
 
     const diagonalLeft = Square{ .row = square.row + oneStep, .column = square.column - 1 };
     if (moveInBounds(diagonalLeft)) {
@@ -84,7 +85,7 @@ fn pawnDoesCheck(self: *MoveGenerator, square: Square) bool {
     return false;
 }
 
-fn knightDoesCheck(self: *MoveGenerator, square: Square) bool {
+fn knightDoesCheck(self: *Game, square: Square) bool {
     for (PieceMoves.Knight) |knightMove| {
         const attackedSquare = Square{ .row = square.row + knightMove, .column = square.column + knightMove.column };
         if (moveInBounds(attackedSquare)) {
@@ -98,7 +99,7 @@ fn knightDoesCheck(self: *MoveGenerator, square: Square) bool {
     return false;
 }
 
-fn brqDoesCheck(self: *MoveGenerator, square: Square, pieceMoves: []Step) bool {
+fn brqDoesCheck(self: *Game, square: Square, pieceMoves: []Step) bool {
     for (pieceMoves) |pieceMove| {
         const attackedSquare = Square{ .row = square.row + pieceMove.row, .column = square.column + pieceMove.column };
         while (moveInBounds(attackedSquare)) {
@@ -114,7 +115,7 @@ fn brqDoesCheck(self: *MoveGenerator, square: Square, pieceMoves: []Step) bool {
     return false;
 }
 
-fn kingDoesCheck(self: *MoveGenerator, square: Square) bool {
+fn kingDoesCheck(self: *Game, square: Square) bool {
     for (PieceMoves.King) |kingMove| {
         const attackedSquare = Square{ .row = square.row + kingMove.row, .column = square.column + kingMove.column };
         if (moveInBounds(attackedSquare)) {

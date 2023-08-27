@@ -4,7 +4,11 @@ const Square = @import("generation.zig").Square;
 const Step = @import("generation.zig").Step;
 const Type = @import("generation.zig").Type;
 const Color = @import("generation.zig").Color;
-const MoveGenerator = @import("generation.zig").MoveManager;
+const Board = @import("generation.zig").Board;
+const Position = @import("generation.zig").Position;
+const Moves = @import("generation.zig").Moves;
+const split = @import("std").mem.split;
+const parseInt = @import("std").fmt.parseInt;
 
 pub fn oppositeColor(color: Color) Color {
     switch (color) {
@@ -13,8 +17,8 @@ pub fn oppositeColor(color: Color) Color {
     }
 }
 
-pub fn pieceIsMyKing(self: *MoveGenerator, piece: Piece) bool {
-    return (piece.color == self.playerColor and piece.type == Type.King);
+pub fn pieceIsMyKing(self: *Position, piece: Piece) bool {
+    return (piece.color == self.moveManager.playerColor and piece.type == Type.King);
 }
 
 pub fn moveInBounds(square: Square) bool {
@@ -31,7 +35,7 @@ pub fn squareToNotation(square: Square) [2]u8 {
 }
 
 // left-to-right
-pub fn squaresBetweenEmpty(self: *MoveGenerator, from: Square, to: Square) bool {
+pub fn squaresBetweenEmpty(self: *Position, from: Square, to: Square) bool {
     var iColumn = from.column + 1;
     while (iColumn < to.column) : (iColumn += 1) {
         if (self.board[@intCast(from.row)][@intCast(iColumn)] != null) {
@@ -41,25 +45,25 @@ pub fn squaresBetweenEmpty(self: *MoveGenerator, from: Square, to: Square) bool 
     return true;
 }
 
-pub fn addMove(self: *MoveGenerator, move: Move) void {
-    self.playerMoves[self.iMove.*] = move;
-    self.iMove.* += 1;
+pub fn addMove(moves: *Moves, move: Move) void {
+    moves.playerMoves[moves.iMove.*] = move;
+    moves.iMove.* += 1;
 }
 
-pub fn undoMove(self: *MoveGenerator, move: Move) void {
+pub fn undoMove(self: *Position, move: Move) void {
     movePiece(self, move.to, move.from, move.movingPiece);
     setBoard(self, move.to, move.landingSquare);
     if (move.castlingRookFrom) |castleFrom| {
         if (move.castlingRookTo) |castleTo| {
-            movePiece(self, castleTo, castleFrom, Piece{ .type = Type.Rook, .color = self.playerColor });
+            movePiece(self, castleTo, castleFrom, Piece{ .type = Type.Rook, .color = self.moveManager.playerColor });
         }
     }
     if (move.enPassantSquare) |capturedSquare| {
-        setBoard(self, capturedSquare, Piece{ .type = Type.Pawn, .color = oppositeColor(self.playerColor) });
+        setBoard(self, capturedSquare, Piece{ .type = Type.Pawn, .color = oppositeColor(self.moveManager.playerColor) });
     }
 }
 
-pub fn makeMove(self: *MoveGenerator, move: Move) void {
+pub fn makeMove(self: *Position, move: Move) void {
     movePiece(self, move.from, move.to, move.movingPiece);
     if (move.castlingRookFrom) |castleFrom| {
         if (move.castlingRookTo) |castleTo| {
@@ -71,89 +75,97 @@ pub fn makeMove(self: *MoveGenerator, move: Move) void {
     }
 }
 
-fn movePiece(self: *MoveGenerator, from: Square, to: Square, piece: Piece) void {
+fn movePiece(self: *Position, from: Square, to: Square, piece: Piece) void {
     self.board[@intCast(to.row)][@intCast(to.column)] = piece;
     self.board[@intCast(from.row)][@intCast(from.column)] = null;
 }
 
-fn setBoard(self: *MoveGenerator, square: Square, piece: ?Piece) void {
+fn setBoard(self: *Position, square: Square, piece: ?Piece) void {
     self.board[@intCast(square.row)][@intCast(square.column)] = piece;
 }
 
-pub fn getBoard(self: *MoveGenerator, square: Square) ?Piece {
+pub fn getBoard(self: *Position, square: Square) ?Piece {
     return self.board[@intCast(square.row)][@intCast(square.column)];
 }
 
-pub fn setupFromFEN(self: *MoveGenerator, fen: []const u8) void {
-    var iRow: usize = 7;
-    var iColumn: usize = 0;
-
-    var iFEN: usize = 0;
-    while (fen[iFEN] != ' ' and iFEN < fen.len) {
-        switch (fen[iFEN]) {
-            '1'...'8' => {
-                const skip = fen[iFEN] - '0';
-                for (0..skip) |_| {
-                    self.board[iRow][iColumn] = null;
-                    iColumn += 1;
-                }
-            },
-            'r' => {
-                self.board[iRow][iColumn] = Piece{ .type = Type.Rook, .color = Color.Black };
-                iColumn += 1;
-            },
-            'n' => {
-                self.board[iRow][iColumn] = Piece{ .type = Type.Knight, .color = Color.Black };
-                iColumn += 1;
-            },
-            'b' => {
-                self.board[iRow][iColumn] = Piece{ .type = Type.Bishop, .color = Color.Black };
-                iColumn += 1;
-            },
-            'q' => {
-                self.board[iRow][iColumn] = Piece{ .type = Type.Queen, .color = Color.Black };
-                iColumn += 1;
-            },
-            'k' => {
-                self.board[iRow][iColumn] = Piece{ .type = Type.King, .color = Color.Black };
-                iColumn += 1;
-            },
-            'p' => {
-                self.board[iRow][iColumn] = Piece{ .type = Type.Pawn, .color = Color.Black };
-                iColumn += 1;
-            },
-            'R' => {
-                self.board[iRow][iColumn] = Piece{ .type = Type.Rook, .color = Color.White };
-                iColumn += 1;
-            },
-            'N' => {
-                self.board[iRow][iColumn] = Piece{ .type = Type.Knight, .color = Color.White };
-                iColumn += 1;
-            },
-            'B' => {
-                self.board[iRow][iColumn] = Piece{ .type = Type.Bishop, .color = Color.White };
-                iColumn += 1;
-            },
-            'Q' => {
-                self.board[iRow][iColumn] = Piece{ .type = Type.Queen, .color = Color.White };
-                iColumn += 1;
-            },
-            'K' => {
-                self.board[iRow][iColumn] = Piece{ .type = Type.King, .color = Color.White };
-                iColumn += 1;
-            },
-            'P' => {
-                self.board[iRow][iColumn] = Piece{ .type = Type.Pawn, .color = Color.White };
-                iColumn += 1;
-            },
-            '/' => {
-                iRow -= 1;
-                iColumn = 0;
-            },
-            else => unreachable,
-        }
-        iFEN += 1;
+fn pieceFromChar(char: u8) ?Piece {
+    switch (char) {
+        'p' => return Piece{ .type = Type.Pawn, .color = Color.Black },
+        'r' => return Piece{ .type = Type.Rook, .color = Color.Black },
+        'n' => return Piece{ .type = Type.Knight, .color = Color.Black },
+        'b' => return Piece{ .type = Type.Bishop, .color = Color.Black },
+        'q' => return Piece{ .type = Type.Queen, .color = Color.Black },
+        'k' => return Piece{ .type = Type.King, .color = Color.Black },
+        'P' => return Piece{ .type = Type.Pawn, .color = Color.White },
+        'R' => return Piece{ .type = Type.Rook, .color = Color.White },
+        'N' => return Piece{ .type = Type.Knight, .color = Color.White },
+        'B' => return Piece{ .type = Type.Bishop, .color = Color.White },
+        'Q' => return Piece{ .type = Type.Queen, .color = Color.White },
+        'K' => return Piece{ .type = Type.King, .color = Color.White },
+        else => return null,
     }
+}
 
-    // Optionally, you can also handle other parts of FEN such as the active color, castling availability, en passant target square, half-move clock, and full-move number.
+fn squareFromString(string: []const u8) Square {
+    return Square{ .column = @intCast(string[0] - 'a'), .row = @intCast(string[1] - '1') };
+}
+
+fn indexOf(slice: []const u8, char: u8) ?usize {
+    var index: usize = 0;
+    for (slice) |element| {
+        if (element == char) {
+            return index;
+        }
+        index += 1;
+    }
+    return null;
+}
+
+pub fn gameFromFEN(fen: []const u8) Position {
+    var partsIterator = split(u8, fen, " ");
+    var parts: [6][]const u8 = undefined;
+    var index: usize = 0;
+    while (partsIterator.next()) |part| {
+        parts[index] = part;
+        index += 1;
+    }
+    var board: Board = undefined;
+    var ranksIterator = split(u8, parts[0], "/");
+    var row: usize = 0;
+    while (ranksIterator.next()) |rank| {
+        var column: usize = 0;
+        for (rank) |char| {
+            switch (char) {
+                'p', 'r', 'n', 'b', 'q', 'k', 'P', 'R', 'N', 'B', 'Q', 'K' => {
+                    board[row][column] = pieceFromChar(char);
+                    column += 1;
+                },
+                '1'...'8' => {
+                    const emptySquares = char - '0';
+                    column += emptySquares;
+                },
+                else => {},
+            }
+        }
+        row += 1;
+    }
+    const toMove: Color = if (parts[1][0] == 'w') Color.White else Color.Black;
+    const canWhiteShortCastle: bool = indexOf(parts[2], 'K') != null;
+    const canWhiteLongCastle: bool = indexOf(parts[2], 'Q') != null;
+    const canBlackShortCastle: bool = indexOf(parts[2], 'k') != null;
+    const canBlackLongCastle: bool = indexOf(parts[2], 'q') != null;
+    const enPassantSquare: ?Square = if (parts[3][0] != '-') squareFromString(parts[3]) else null;
+    const halfMoveClock: usize = @as(usize, @intCast(parseInt(i64, parts[4], 10)));
+    const fullMoveNumber: usize = @as(usize, @intCast(parseInt(i64, parts[5], 10)));
+    return Position{
+        .board = board,
+        .toMove = toMove,
+        .canWhiteShortCastle = canWhiteShortCastle,
+        .canWhiteLongCastle = canWhiteLongCastle,
+        .canBlackShortCastle = canBlackShortCastle,
+        .canBlackLongCastle = canBlackLongCastle,
+        .enPassantSquare = enPassantSquare,
+        .halfMoveClock = halfMoveClock,
+        .fullMoveNumber = fullMoveNumber,
+    };
 }

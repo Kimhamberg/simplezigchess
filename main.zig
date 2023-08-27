@@ -8,26 +8,12 @@ const Type = @import("generation.zig").Type;
 const getPlayerMoves = @import("generation.zig").getPlayerMoves;
 const print = @import("std").debug.print;
 const squareToCoordinate = @import("utils.zig").squareToNotation;
+const gameFromFEN = @import("utils.zig").gameFromFEN;
 
 pub fn main() void {
-    // UCI.runUCILoop();
-    var moveGenerator = MoveGenerator{ .board = undefined, .iMove = undefined, .playerColor = Color.White, .playerMoves = [_]Move{undefined} ** 256 };
-    setupBoard(&moveGenerator);
-    // black bishop from f8 to b4
-    const blackBishop = moveGenerator.board[7][5];
-    moveGenerator.board[7][5] = null;
-    moveGenerator.board[3][1] = blackBishop;
-    // white pawn from d2 to d3
-    const whitePawn = moveGenerator.board[1][3];
-    moveGenerator.board[1][3] = null;
-    moveGenerator.board[2][3] = whitePawn;
-    // white knight from b1 to c3
-    const whiteKnight = moveGenerator.board[0][1];
-    moveGenerator.board[0][1] = null;
-    moveGenerator.board[2][2] = whiteKnight;
-
-    getPlayerMoves(&moveGenerator);
-    for (moveGenerator.playerMoves) |move| {
+    var game = gameFromFEN("r1bqkb1r/ppp2ppp/2n5/1B1pP3/4n3/2N2Q2/PPPP2PP/R1B1K1NR b KQkq - 3 6");
+    getPlayerMoves(&game);
+    for (game.moveManager.playerMoves) |move| {
         const from = move.from;
         const to = move.to;
         if (from.column != to.column or from.row != to.row) {
