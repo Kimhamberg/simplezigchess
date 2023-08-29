@@ -136,8 +136,8 @@ fn getPawnMoves(position: *Position, square: Square, piece: Piece, moves: Moves)
 
     const diagonalLeftSquare = Square{ .column = square.column - 1, .row = square.row + oneStep };
     if (moveInBounds(diagonalLeftSquare)) {
-        const diagonalLeftMove = Move{ .from = square, .to = diagonalLeftSquare, .movingPiece = piece, .landingSquare = getBoard(position, diagonalLeftSquare) };
-        if (diagonalLeftMove.landingSquare) |capturedPiece| {
+        const diagonalLeftMove = Move{ .from = square, .to = diagonalLeftSquare };
+        if (getBoard(position, diagonalLeftSquare) ) |capturedPiece| {
             if (capturedPiece.color != position.moveManager.playerColor and !inCheckAfterMove(position, diagonalLeftMove)) {
                 addMove(position, diagonalLeftMove);
             }
