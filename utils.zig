@@ -7,19 +7,24 @@ const Color = @import("generation.zig").Color;
 const Board = @import("generation.zig").Board;
 const Position = @import("generation.zig").Position;
 const Moves = @import("generation.zig").Moves;
+const inCheckAfterMove = @import("check.zig").inCheckAfterMove;
 const split = @import("std").mem.split;
 const parseInt = @import("std").fmt.parseInt;
 
-pub fn oppositeColor(color: Color) Color {
-    switch (color) {
-        Color.Black => return Color.White,
-        Color.White => return Color.Black,
+
+fn addCastlingMove(position: Position, square: Square, direction: i32) void {
+    const rookSquare = Square{ .column = square.column + direction * 4, .row = square.row };
+    if (getBoard(position, rookSquare)) |rook| {
+        if (rook.type == Type.Rook and squaresBetweenEmpty(position, rookSquare, square)) {
+            const oneStep = Move{ .from = square, .to = Square{ .column = square.column + direction, .row = square.row }};
+            const castle = Move{ .from = square, .to = Square{ .column = square.column + direction * 2, .row = square.row }, .castlingRookFrom = rookSquare, .castlingRookTo = Square{ .column = rookSquare.column - direction * 2, .row = rookSquare.row }};
+            if (!inCheckAfterMove(position, oneStep) and !inCheckAfterMove(position, castle)) {
+                addMove(position, castle);
+            }
+        }
     }
 }
 
-pub fn pieceIsMyKing(self: *Position, piece: Piece) bool {
-    return (piece.color == self.moveManager.playerColor and piece.type == Type.King);
-}
 
 pub fn moveInBounds(square: Square) bool {
     return (0 <= square.column and square.column <= 7) and (0 <= square.row and square.row <= 7);

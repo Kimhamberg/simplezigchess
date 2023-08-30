@@ -9,7 +9,6 @@ const Game = @import("generation.zig").Position;
 const getBoard = @import("utils.zig").getBoard;
 const PieceMoves = @import("generation.zig").PieceMoves;
 const moveInBounds = @import("utils.zig").moveInBounds;
-const pieceIsMyKing = @import("utils.zig").pieceIsMyKing;
 const makeMove = @import("utils.zig").makeMove;
 const undoMove = @import("utils.zig").undoMove;
 
