@@ -11,20 +11,9 @@ const inCheckAfterMove = @import("check.zig").inCheckAfterMove;
 const split = @import("std").mem.split;
 const parseInt = @import("std").fmt.parseInt;
 
-
-fn addCastlingMove(position: Position, square: Square, direction: i32) void {
-    const rookSquare = Square{ .column = square.column + direction * 4, .row = square.row };
-    if (getBoard(position, rookSquare)) |rook| {
-        if (rook.type == Type.Rook and squaresBetweenEmpty(position, rookSquare, square)) {
-            const oneStep = Move{ .from = square, .to = Square{ .column = square.column + direction, .row = square.row }};
-            const castle = Move{ .from = square, .to = Square{ .column = square.column + direction * 2, .row = square.row }, .castlingRookFrom = rookSquare, .castlingRookTo = Square{ .column = rookSquare.column - direction * 2, .row = rookSquare.row }};
-            if (!inCheckAfterMove(position, oneStep) and !inCheckAfterMove(position, castle)) {
-                addMove(position, castle);
-            }
-        }
-    }
+pub fn pieceIsMyKing(position: *Position, piece: Piece) bool {
+    return (position.turn == piece.color and piece.type == Type.King);
 }
-
 
 pub fn moveInBounds(square: Square) bool {
     return (0 <= square.column and square.column <= 7) and (0 <= square.row and square.row <= 7);
@@ -35,7 +24,6 @@ pub fn squareToNotation(square: Square) [2]u8 {
     var coordinate: [2]u8 = undefined;
     coordinate[0] = letters[@intCast(square.column)];
     coordinate[1] = '1' + @as(u8, @intCast(square.row));
-
     return coordinate;
 }
 
@@ -55,42 +43,51 @@ pub fn addMove(moves: *Moves, move: Move) void {
     moves.iMove.* += 1;
 }
 
-pub fn undoMove(self: *Position, move: Move) void {
-    movePiece(self, move.to, move.from, move.movingPiece);
-    setBoard(self, move.to, move.landingSquare);
+fn oppositeColor(color: Color) Color {
+    if (color == Color.White) {
+        return Color.Black;
+    }
+    return Color.White;
+}
+
+pub fn undoMove(position: *Position, move: Move) void {
+    movePiece(position, move.to, move.from, move.movingPiece);
+    setBoard(position, move.to, move.landingSquare);
     if (move.castlingRookFrom) |castleFrom| {
         if (move.castlingRookTo) |castleTo| {
-            movePiece(self, castleTo, castleFrom, Piece{ .type = Type.Rook, .color = self.moveManager.playerColor });
+            movePiece(position, castleTo, castleFrom, Piece{ .type = Type.Rook, .color = position.moveManager.playerColor });
         }
     }
     if (move.enPassantSquare) |capturedSquare| {
-        setBoard(self, capturedSquare, Piece{ .type = Type.Pawn, .color = oppositeColor(self.moveManager.playerColor) });
+        setBoard(position, capturedSquare, Piece{ .type = Type.Pawn, .color = oppositeColor(position.moveManager.playerColor) });
     }
 }
 
-pub fn makeMove(self: *Position, move: Move) void {
-    movePiece(self, move.from, move.to, move.movingPiece);
+pub fn makeMove(position: *Position, move: Move) Position {
+    const oldPosition = position;
+    movePiece(position, move.from, move.to);
     if (move.castlingRookFrom) |castleFrom| {
         if (move.castlingRookTo) |castleTo| {
-            movePiece(self, castleFrom, castleTo, getBoard(self, castleFrom));
+            movePiece(position, castleFrom, castleTo, getBoard(position, castleFrom));
         }
     }
-    if (move.enPassantSquare) |capturedSquare| {
-        setBoard(self, capturedSquare, null);
+    if (position.enPassantSquare) |enPassantSquare| {
+        setBoard(position, enPassantSquare, null);
     }
+    return oldPosition;
 }
 
-fn movePiece(self: *Position, from: Square, to: Square, piece: Piece) void {
-    self.board[@intCast(to.row)][@intCast(to.column)] = piece;
-    self.board[@intCast(from.row)][@intCast(from.column)] = null;
+fn movePiece(position: *Position, from: Square, to: Square) void {
+    position.board[@intCast(to.row)][@intCast(to.column)] = getBoard(position, from);
+    position.board[@intCast(from.row)][@intCast(from.column)] = null;
 }
 
-fn setBoard(self: *Position, square: Square, piece: ?Piece) void {
-    self.board[@intCast(square.row)][@intCast(square.column)] = piece;
+fn setBoard(position: *Position, square: Square, piece: ?Piece) void {
+    position.board[@intCast(square.row)][@intCast(square.column)] = piece;
 }
 
-pub fn getBoard(self: *Position, square: Square) ?Piece {
-    return self.board[@intCast(square.row)][@intCast(square.column)];
+pub fn getBoard(position: *Position, square: Square) ?Piece {
+    return position.board[@intCast(square.row)][@intCast(square.column)];
 }
 
 fn pieceFromChar(char: u8) ?Piece {
@@ -126,7 +123,7 @@ fn indexOf(slice: []const u8, char: u8) ?usize {
     return null;
 }
 
-pub fn gameFromFEN(fen: []const u8) Position {
+pub fn positionFromFEN(fen: []const u8) Position {
     var partsIterator = split(u8, fen, " ");
     var parts: [6][]const u8 = undefined;
     var index: usize = 0;
