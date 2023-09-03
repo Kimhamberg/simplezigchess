@@ -13,21 +13,19 @@ const makeMove = @import("utils.zig").makeMove;
 const undoMove = @import("utils.zig").undoMove;
 const pieceIsMyKing = @import("utils.zig").pieceIsMyKing;
 
-pub fn inCheckAfterMove(position: *Position, move: Move) bool {
-    makeMove(position, move);
-    const inCheck = opponentGivesCheck(position);
-    undoMove(position, move);
+pub fn inCheckAfterMove(position: *Position, move: Move) !bool {
+    const oldPosition = try makeMove(position, move);
+    defer undoMove(position, oldPosition) catch unreachable;
+    const inCheck = try opponentGivesCheck(position);
     return inCheck;
 }
 
-pub fn opponentGivesCheck(position: *Position, moves: Moves) bool {
-    var index: usize = 0;
-    moves.iMove = &index;
+pub fn opponentGivesCheck(position: *Position) !bool {
     for (position.board, 0..) |row, iRow| {
         for (row, 0..) |possiblePiece, iColumn| {
             if (possiblePiece) |piece| {
                 if (piece.color != position.turn) {
-                    if (pieceDoesCheck(position, Square{ .column = @intCast(iColumn), .row = @intCast(iRow) }, piece)) {
+                    if (try pieceDoesCheck(position, Square{ .column = @intCast(iColumn), .row = @intCast(iRow) }, piece)) {
                         return true;
                     }
                 }
@@ -37,46 +35,45 @@ pub fn opponentGivesCheck(position: *Position, moves: Moves) bool {
     return false;
 }
 
-fn pieceDoesCheck(position: *Position, square: Square, piece: Piece) bool {
+fn pieceDoesCheck(position: *Position, square: Square, piece: Piece) !bool {
     switch (piece.type) {
-        Type.Pawn => if (pawnDoesCheck(position, square)) {
+        Type.Pawn => if (try pawnDoesCheck(position, square)) {
             return true;
         },
-        Type.Knight => if (knightDoesCheck(position, square)) {
+        Type.Knight => if (try knightDoesCheck(position, square)) {
             return true;
         },
-        Type.Bishop => if (brqDoesCheck(position, square, PieceMoves.Bishop)) {
+        Type.Bishop => if (try brqDoesCheck(position, square, PieceMoves.Bishop[0..])) {
             return true;
         },
-        Type.Rook => if (brqDoesCheck(position, square, PieceMoves.Rook)) {
+        Type.Rook => if (try brqDoesCheck(position, square, PieceMoves.Rook[0..])) {
+        },
+        Type.Queen => if (try brqDoesCheck(position, square, PieceMoves.Queen[0..])) {
             return true;
         },
-        Type.Queen => if (brqDoesCheck(position, square, PieceMoves.Queen)) {
-            return true;
-        },
-        Type.King => if (kingDoesCheck(position, square)) {
+        Type.King => if (try kingDoesCheck(position, square)) {
             return true;
         },
     }
     return false;
 }
 
-fn pawnDoesCheck(position: *Position, square: Square) bool {
+fn pawnDoesCheck(position: *Position, square: Square) !bool {
     const oneStep: i64 = if (position.turn == Color.White) 1 else -1;
 
     const diagonalLeft = Square{ .row = square.row + oneStep, .column = square.column - 1 };
-    if (moveInBounds(diagonalLeft)) {
-        if (getBoard(position, diagonalLeft)) |attackedPiece| {
-            if (pieceIsMyKing(position, attackedPiece)) {
+    if (try moveInBounds(diagonalLeft)) {
+        if (try getBoard(position, diagonalLeft)) |attackedPiece| {
+            if (try pieceIsMyKing(position, attackedPiece)) {
                 return true;
             }
         }
     }
 
     const diagonalRight = Square{ .row = square.row + oneStep, .column = square.column + 1 };
-    if (moveInBounds(diagonalRight)) {
-        if (getBoard(position, diagonalRight)) |attackedPiece| {
-            if (pieceIsMyKing(position, attackedPiece)) {
+    if (try moveInBounds(diagonalRight)) {
+        if (try getBoard(position, diagonalRight)) |attackedPiece| {
+            if (try pieceIsMyKing(position, attackedPiece)) {
                 return true;
             }
         }
@@ -85,12 +82,12 @@ fn pawnDoesCheck(position: *Position, square: Square) bool {
     return false;
 }
 
-fn knightDoesCheck(position: *Position, square: Square) bool {
+fn knightDoesCheck(position: *Position, square: Square) !bool {
     for (PieceMoves.Knight) |knightMove| {
-        const attackedSquare = Square{ .row = square.row + knightMove, .column = square.column + knightMove.column };
-        if (moveInBounds(attackedSquare)) {
-            if (getBoard(position, attackedSquare)) |attackedPiece| {
-                if (pieceIsMyKing(position, attackedPiece)) {
+        const attackedSquare = Square{ .row = square.row + knightMove.row, .column = square.column + knightMove.column };
+        if (try moveInBounds(attackedSquare)) { 
+            if (try getBoard(position, attackedSquare)) |attackedPiece| { 
+                if (try pieceIsMyKing(position, attackedPiece)) { 
                     return true;
                 }
             }
@@ -99,12 +96,12 @@ fn knightDoesCheck(position: *Position, square: Square) bool {
     return false;
 }
 
-fn brqDoesCheck(position: *Position, square: Square, pieceMoves: []Step) bool {
+fn brqDoesCheck(position: *Position, square: Square, pieceMoves: []const Step) !bool {
     for (pieceMoves) |pieceMove| {
-        const attackedSquare = Square{ .row = square.row + pieceMove.row, .column = square.column + pieceMove.column };
-        while (moveInBounds(attackedSquare)) {
-            if (getBoard(position, attackedSquare)) |attackedPiece| {
-                if (pieceIsMyKing(position, attackedPiece)) {
+        var attackedSquare = Square{ .row = square.row + pieceMove.row, .column = square.column + pieceMove.column };
+        while (try moveInBounds(attackedSquare)) {
+            if (try getBoard(position, attackedSquare)) |attackedPiece| {
+                if (try pieceIsMyKing(position, attackedPiece)) {
                     return true;
                 }
                 break;
@@ -115,12 +112,12 @@ fn brqDoesCheck(position: *Position, square: Square, pieceMoves: []Step) bool {
     return false;
 }
 
-fn kingDoesCheck(position: *Position, square: Square) bool {
+fn kingDoesCheck(position: *Position, square: Square) !bool {
     for (PieceMoves.King) |kingMove| {
         const attackedSquare = Square{ .row = square.row + kingMove.row, .column = square.column + kingMove.column };
-        if (moveInBounds(attackedSquare)) {
-            if (getBoard(position, attackedSquare)) |attackedPiece| {
-                if (pieceIsMyKing(position, attackedPiece)) {
+        if (try moveInBounds(attackedSquare)) {
+            if (try getBoard(position, attackedSquare)) |attackedPiece| {
+                if (try pieceIsMyKing(position, attackedPiece)) {
                     return true;
                 }
             }

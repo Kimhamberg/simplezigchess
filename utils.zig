@@ -10,8 +10,28 @@ const Moves = @import("generation.zig").Moves;
 const inCheckAfterMove = @import("check.zig").inCheckAfterMove;
 const split = @import("std").mem.split;
 const parseInt = @import("std").fmt.parseInt;
+const Error = @import("error.zig").Error;
 
-pub fn pieceIsMyKing(position: *Position, piece: Piece) bool {
+
+pub fn squareDifferent(square1: Square, square2: Square) bool {
+    return (square1.row != square2.row or square1.column != square2.column);
+}
+
+pub fn moveCount(moves: *Moves) !usize {
+    var count: usize = 0;
+    if (moves == null) {
+        return Error.MovesNull;
+    }
+    for (moves.playerMoves) |playerMove| {
+        count += if (squareDifferent(playerMove.from, playerMove.to)) 1 else 0;
+    }
+    return count;
+}
+
+pub fn pieceIsMyKing(position: *Position, piece: Piece) !bool {
+    if (position == null) {
+        return Error.PositionNull;
+    }
     return (position.turn == piece.color and piece.type == Type.King);
 }
 
@@ -50,29 +70,31 @@ fn oppositeColor(color: Color) Color {
     return Color.White;
 }
 
-pub fn undoMove(position: *Position, move: Move) void {
-    movePiece(position, move.to, move.from, move.movingPiece);
-    setBoard(position, move.to, move.landingSquare);
-    if (move.castlingRookFrom) |castleFrom| {
-        if (move.castlingRookTo) |castleTo| {
-            movePiece(position, castleTo, castleFrom, Piece{ .type = Type.Rook, .color = position.moveManager.playerColor });
-        }
-    }
-    if (move.enPassantSquare) |capturedSquare| {
-        setBoard(position, capturedSquare, Piece{ .type = Type.Pawn, .color = oppositeColor(position.moveManager.playerColor) });
-    }
+pub fn undoMove(position: *Position, oldPosition: *Position) void {
+    position.board = oldPosition.board;
+    position.turn = oldPosition.turn;
+    position.canWhiteShortCastle = oldPosition.canWhiteShortCastle;
+    position.canWhiteLongCastle = oldPosition.canWhiteLongCastle;
+    position.canBlackShortCastle = oldPosition.canBlackShortCastle;
+    position.canBlackLongCastle = oldPosition.canBlackLongCastle;
+    position.enPassantSquare = oldPosition.enPassantSquare;
+    position.halfMoveClock = oldPosition.halfMoveClock;
+    position.fullMoveNumber = oldPosition.fullMoveNumber;
 }
 
-pub fn makeMove(position: *Position, move: Move) Position {
+pub fn makeMove(position: *Position, move: Move) *Position {
     const oldPosition = position;
     movePiece(position, move.from, move.to);
     if (move.castlingRookFrom) |castleFrom| {
         if (move.castlingRookTo) |castleTo| {
-            movePiece(position, castleFrom, castleTo, getBoard(position, castleFrom));
+            movePiece(position, castleFrom, castleTo);
         }
     }
     if (position.enPassantSquare) |enPassantSquare| {
-        setBoard(position, enPassantSquare, null);
+        if (move.to.row == enPassantSquare.row and move.to.column == enPassantSquare.column) {
+            const oneStep: i64 = if (position.turn == Color.White) -1 else 1;
+            setBoard(position, Square{.row = enPassantSquare.row + oneStep, .column = enPassantSquare.column}, null);
+        }
     }
     return oldPosition;
 }
@@ -151,17 +173,19 @@ pub fn positionFromFEN(fen: []const u8) Position {
         }
         row += 1;
     }
-    const toMove: Color = if (parts[1][0] == 'w') Color.White else Color.Black;
+    const turn: Color = if (parts[1][0] == 'w') Color.White else Color.Black;
     const canWhiteShortCastle: bool = indexOf(parts[2], 'K') != null;
     const canWhiteLongCastle: bool = indexOf(parts[2], 'Q') != null;
     const canBlackShortCastle: bool = indexOf(parts[2], 'k') != null;
     const canBlackLongCastle: bool = indexOf(parts[2], 'q') != null;
     const enPassantSquare: ?Square = if (parts[3][0] != '-') squareFromString(parts[3]) else null;
-    const halfMoveClock: usize = @as(usize, @intCast(parseInt(i64, parts[4], 10)));
-    const fullMoveNumber: usize = @as(usize, @intCast(parseInt(i64, parts[5], 10)));
+    const parsedHalfMoveClock = parseInt(i64, parts[4], 10) catch unreachable;
+    const halfMoveClock: usize = @as(usize, @intCast(parsedHalfMoveClock));
+    const parsedFullMoveNumber = parseInt(i64, parts[5], 10) catch unreachable;
+    const fullMoveNumber: usize = @as(usize, @intCast(parsedFullMoveNumber));
     return Position{
         .board = board,
-        .toMove = toMove,
+        .turn = turn,
         .canWhiteShortCastle = canWhiteShortCastle,
         .canWhiteLongCastle = canWhiteLongCastle,
         .canBlackShortCastle = canBlackShortCastle,

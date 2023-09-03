@@ -5,19 +5,19 @@ const Square = @import("generation.zig").Square;
 const Type = @import("generation.zig").Type;
 const Moves = @import("generation.zig").Moves;
 const getPlayerMoves = @import("generation.zig").getPlayerMoves;
+const positionFromFEN = @import("utils.zig").positionFromFEN;
+const squareDifferent = @import("utils.zig").squareDifferent;
 const print = @import("std").debug.print;
-const squareToCoordinate = @import("utils.zig").squareToNotation;
-const gameFromFEN = @import("utils.zig").gameFromFEN;
+const squareToNotation = @import("utils.zig").squareToNotation;
 
 pub fn main() void {
-    var moves = Moves(undefined ** 256, undefined);
-    var position = gameFromFEN("r1bqkb1r/ppp2ppp/2n5/1B1pP3/4n3/2N2Q2/PPPP2PP/R1B1K1NR b KQkq - 3 6");
-    getPlayerMoves(&position);
-    for (moves.playerMoves) |move| {
-        const from = move.from;
-        const to = move.to;
-        if (from.column != to.column or from.row != to.row) {
-            print("{s} to {s}\n", .{ squareToCoordinate(from), squareToCoordinate(to) });
+    var leftPassantPosition = positionFromFEN("rnbqkbnr/ppp1p1pp/8/3pPp2/8/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 3");
+    var index: usize = 0;
+    var moves = Moves{.playerMoves = [_]Move{undefined}**256, .iMove = &index};
+    getPlayerMoves(&leftPassantPosition, &moves);
+    for (moves.playerMoves) |playerMove| {
+        if (squareDifferent(playerMove.from, playerMove.to)) {
+            print("from {s} to {s}", .{squareToNotation(playerMove.from), squareToNotation(playerMove.to)});
         }
     }
 }

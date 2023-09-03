@@ -4,7 +4,7 @@ const addMove = @import("utils.zig").addMove;
 const getBoard = @import("utils.zig").getBoard;
 const print = @import("std").debug.print;
 const inCheckAfterMove = @import("check.zig").inCheckAfterMove;
-const opponentDoesCheck = @import("check.zig").opponentDoesCheck;
+const opponentGivesCheck = @import("check.zig").opponentGivesCheck;
 
 pub const Type = enum { Pawn, Knight, Bishop, Rook, Queen, King };
 pub const Color = enum { White, Black };
@@ -12,13 +12,13 @@ pub const Piece = struct { type: Type, color: Color };
 pub const Board = [8][8]?Piece;
 
 pub const Square = struct {
-    column: i4,
-    row: i4,
+    column: i64,
+    row: i64,
 };
 
 pub const Step = struct {
-    column: i4,
-    row: i4,
+    column: i64,
+    row: i64,
 };
 
 pub const PieceMoves = struct {
@@ -92,8 +92,6 @@ pub const Position = struct {
 };
 
 pub fn getPlayerMoves(position: *Position, moves: *Moves) void {
-    var index: usize = 0;
-    moves.iMove = &index;
     for (position.board, 0..) |row, iRow| {
         for (row, 0..) |possiblePiece, iColumn| {
             if (possiblePiece) |piece| {
@@ -105,7 +103,7 @@ pub fn getPlayerMoves(position: *Position, moves: *Moves) void {
     }
 }
 
-pub fn getPieceMoves(position: *Position, square: Square, piece: Piece, moves: Moves) void {
+pub fn getPieceMoves(position: *Position, square: Square, piece: Piece, moves: *Moves) void {
     switch (piece.type) {
         Type.Pawn => return getPawnMoves(position, square, moves),
         Type.Knight => return getKnightMoves(position, square, moves),
@@ -116,8 +114,8 @@ pub fn getPieceMoves(position: *Position, square: Square, piece: Piece, moves: M
     }
 }
 
-fn getPawnMoves(position: *Position, square: Square, moves: Moves) void {
-    const oneStep: i4 = if (position.turn == Color.White) 1 else -1;
+fn getPawnMoves(position: *Position, square: Square, moves: *Moves) void {
+    const oneStep: i64 = if (position.turn == Color.White) 1 else -1;
     const oneStepSquare = Square{ .column = square.column, .row = square.row + oneStep };
     if (moveInBounds(oneStepSquare)) {
         const oneStepMove = Move{ .from = square, .to = oneStepSquare };
@@ -168,7 +166,7 @@ fn getPawnMoves(position: *Position, square: Square, moves: Moves) void {
     }
 }
 
-fn getKnightMoves(position: *Position, square: Square, moves: Moves) void {
+fn getKnightMoves(position: *Position, square: Square, moves: *Moves) void {
     for (PieceMoves.Knight) |knightMove| {
         const targetSquare = Square{ .column = square.column + knightMove.column, .row = square.row + knightMove.row };
         if (moveInBounds(targetSquare)) {
@@ -185,7 +183,7 @@ fn getKnightMoves(position: *Position, square: Square, moves: Moves) void {
     }
 }
 
-fn getBRQMoves(position: *Position, square: Square, moves: Moves, pieceMoves: []const Step) void {
+fn getBRQMoves(position: *Position, square: Square, moves: *Moves, pieceMoves: []const Step) void {
     for (pieceMoves) |pieceMove| {
         var targetSquare = Square{ .column = square.column + pieceMove.column, .row = square.row + pieceMove.row };
         while (moveInBounds(targetSquare)) {
@@ -204,7 +202,7 @@ fn getBRQMoves(position: *Position, square: Square, moves: Moves, pieceMoves: []
     }
 }
 
-fn getKingMoves(position: *Position, square: Square, moves: Moves) void {
+fn getKingMoves(position: *Position, square: Square, moves: *Moves) void {
     for (PieceMoves.King) |kingMove| {
         const targetSquare = Square{ .column = square.column + kingMove.column, .row = square.row + kingMove.row };
         if (moveInBounds(targetSquare)) {
@@ -219,26 +217,28 @@ fn getKingMoves(position: *Position, square: Square, moves: Moves) void {
             }
         }
     }
-    const canLongCastle = if (position.turn == Color.White) position.canWhiteLongCastle else position.canBlackLongCastle;
-    if (canLongCastle) {
-        const longRookSquare = Square{ .column = square.column - 4, .row = square.row };
-        if (squaresBetweenEmpty(position, longRookSquare, square)) {
-            const oneLeft = Move{ .from = square, .to = Square{ .column = square.column - 1, .row = square.row } };
-            const longCastle = Move{ .from = square, .to = Square{ .column = square.column - 2, .row = square.row }, .castlingRookFrom = longRookSquare, .castlingRookTo = Square{ .column = longRookSquare.column + 3, .row = longRookSquare.row } };
-            if (!inCheckAfterMove(position, oneLeft) and !inCheckAfterMove(position, longCastle)) {
-                addMove(moves, longCastle);
+    if (!opponentGivesCheck(position)) {
+        const canLongCastle = if (position.turn == Color.White) position.canWhiteLongCastle else position.canBlackLongCastle;
+        if (canLongCastle) {
+            const longRookSquare = Square{ .column = square.column - 4, .row = square.row };
+            if (squaresBetweenEmpty(position, longRookSquare, square)) {
+                const oneLeft = Move{ .from = square, .to = Square{ .column = square.column - 1, .row = square.row } };
+                const longCastle = Move{ .from = square, .to = Square{ .column = square.column - 2, .row = square.row }, .castlingRookFrom = longRookSquare, .castlingRookTo = Square{ .column = longRookSquare.column + 3, .row = longRookSquare.row } };
+                if (!inCheckAfterMove(position, oneLeft) and !inCheckAfterMove(position, longCastle)) {
+                    addMove(moves, longCastle);
+                }
             }
         }
-    }
 
-    const canShortCastle = if (position.turn == Color.White) position.canWhiteShortCastle else position.canBlackShortCastle;
-    if (canShortCastle) {
-        const shortRookSquare = Square{ .column = square.column + 3, .row = square.row };
-        if (squaresBetweenEmpty(position, square, shortRookSquare)) {
-            const oneRight = Move{ .from = square, .to = Square{ .column = square.column + 1, .row = square.row } };
-            const shortCastle = Move{ .from = square, .to = Square{ .column = square.column + 2, .row = square.row }, .castlingRookFrom = shortRookSquare, .castlingRookTo = Square{ .column = shortRookSquare.column - 2, .row = shortRookSquare.row } };
-            if (!inCheckAfterMove(position, oneRight) and !inCheckAfterMove(position, shortCastle)) {
-                addMove(moves, shortCastle);
+        const canShortCastle = if (position.turn == Color.White) position.canWhiteShortCastle else position.canBlackShortCastle;
+        if (canShortCastle) {
+            const shortRookSquare = Square{ .column = square.column + 3, .row = square.row };
+            if (squaresBetweenEmpty(position, square, shortRookSquare)) {
+                const oneRight = Move{ .from = square, .to = Square{ .column = square.column + 1, .row = square.row } };
+                const shortCastle = Move{ .from = square, .to = Square{ .column = square.column + 2, .row = square.row }, .castlingRookFrom = shortRookSquare, .castlingRookTo = Square{ .column = shortRookSquare.column - 2, .row = shortRookSquare.row } };
+                if (!inCheckAfterMove(position, oneRight) and !inCheckAfterMove(position, shortCastle)) {
+                    addMove(moves, shortCastle);
+                }
             }
         }
     }
