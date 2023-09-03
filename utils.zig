@@ -39,7 +39,10 @@ pub fn moveInBounds(square: Square) bool {
     return (0 <= square.column and square.column <= 7) and (0 <= square.row and square.row <= 7);
 }
 
-pub fn squareToNotation(square: Square) [2]u8 {
+pub fn squareToNotation(square: Square) ![2]u8 {
+    if (!moveInBounds(square)) {
+        return Error.OutOfBounds;
+    }
     const letters: []const u8 = "abcdefgh";
     var coordinate: [2]u8 = undefined;
     coordinate[0] = letters[@intCast(square.column)];
@@ -48,7 +51,14 @@ pub fn squareToNotation(square: Square) [2]u8 {
 }
 
 // left-to-right
-pub fn squaresBetweenEmpty(self: *Position, from: Square, to: Square) bool {
+pub fn squaresBetweenEmpty(self: *Position, from: Square, to: Square) !bool {
+    if (!moveInBounds(from) or !moveInBounds(to)) {
+        return Error.OutOfBounds;
+    }
+
+    if (from.row != to.row) {
+        return Error.NotInSameRow;
+    }
     var iColumn = from.column + 1;
     while (iColumn < to.column) : (iColumn += 1) {
         if (self.board[@intCast(from.row)][@intCast(iColumn)] != null) {
@@ -58,19 +68,25 @@ pub fn squaresBetweenEmpty(self: *Position, from: Square, to: Square) bool {
     return true;
 }
 
-pub fn addMove(moves: *Moves, move: Move) void {
+pub fn addMove(moves: *Moves, move: Move) !void {
+    if (moves.iMove.* >= moves.playerMoves.len) {
+        return Error.OutOfBounds;
+    }
     moves.playerMoves[moves.iMove.*] = move;
     moves.iMove.* += 1;
 }
 
 fn oppositeColor(color: Color) Color {
     if (color == Color.White) {
-        return Color.Black;
+        return Color.Black; 
     }
     return Color.White;
 }
 
 pub fn undoMove(position: *Position, oldPosition: *Position) void {
+    if (position == null or oldPosition == null) {
+        return Error.PositionNull;
+    }
     position.board = oldPosition.board;
     position.turn = oldPosition.turn;
     position.canWhiteShortCastle = oldPosition.canWhiteShortCastle;
