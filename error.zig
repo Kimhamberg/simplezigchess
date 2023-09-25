@@ -1,6 +1,16 @@
-const Error = error{
+pub const Error = error{
     PositionNull,
     MovesNull,
     OutOfBounds,
-    NotInSameRow
+    NotInSameRow,
+    CharInvalid,
+    InvalidSquareRepresentation,
+    InvalidInputLength,
+    InvalidFenParts,
+    InvalidBoardSetup,
+    InvalidTurnCharacter,
+    InvalidCastleInformation,
+    InvalidEnPassantSquare,
+    InvalidHalfMoveClock,
+    InvalidFullMoveNumber,
 };

@@ -14,6 +14,8 @@ pub fn main() void {
     var leftPassantPosition = positionFromFEN("rnbqkbnr/ppp1p1pp/8/3pPp2/8/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 3");
     var index: usize = 0;
     var moves = Moves{.playerMoves = [_]Move{undefined}**256, .iMove = &index};
+    var actualLeftPassantPosition = leftPassantPosition catch return;
+    getPlayerMoves(&actualLeftPassantPosition, &moves);
     getPlayerMoves(&leftPassantPosition, &moves);
     for (moves.playerMoves) |playerMove| {
         if (squareDifferent(playerMove.from, playerMove.to)) {

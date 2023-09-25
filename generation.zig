@@ -119,14 +119,16 @@ fn getPawnMoves(position: *Position, square: Square, moves: *Moves) void {
     const oneStepSquare = Square{ .column = square.column, .row = square.row + oneStep };
     if (moveInBounds(oneStepSquare)) {
         const oneStepMove = Move{ .from = square, .to = oneStepSquare };
-        if (getBoard(position, oneStepSquare) == null and !inCheckAfterMove(position, oneStepMove)) {
-            addMove(moves, oneStepMove);
-            const twoStepSquare = Square{ .column = square.column, .row = square.row + 2 * oneStep };
-            if (moveInBounds(twoStepSquare)) {
-                const twoStepMove = Move{ .from = square, .to = twoStepSquare };
-                const isStartingRow = if (position.turn == Color.White) square.row == 1 else square.row == 6;
-                if (getBoard(position, twoStepSquare) == null and isStartingRow and !inCheckAfterMove(position, twoStepMove)) {
-                    addMove(moves, twoStepMove);
+        if (inCheckAfterMove(position, oneStepMove)) |inCheck| {
+            if (getBoard(position, oneStepSquare) == null and !inCheck) {
+                addMove(moves, oneStepMove);
+                const twoStepSquare = Square{ .column = square.column, .row = square.row + 2 * oneStep };
+                if (moveInBounds(twoStepSquare)) {
+                    const twoStepMove = Move{ .from = square, .to = twoStepSquare };
+                    const isStartingRow = if (position.turn == Color.White) square.row == 1 else square.row == 6;
+                    if (getBoard(position, twoStepSquare) == null and isStartingRow and !inCheckAfterMove(position, twoStepMove)) {
+                        addMove(moves, twoStepMove);
+                    }
                 }
             }
         }
@@ -136,14 +138,18 @@ fn getPawnMoves(position: *Position, square: Square, moves: *Moves) void {
     if (moveInBounds(diagonalLeftSquare)) {
         const diagonalLeftMove = Move{ .from = square, .to = diagonalLeftSquare };
         if (getBoard(position, diagonalLeftSquare)) |targetPiece| {
-            if (targetPiece.color != position.turn and !inCheckAfterMove(position, diagonalLeftMove)) {
-                addMove(moves, diagonalLeftMove);
+            if (inCheckAfterMove(position, diagonalLeftMove)) |inCheck| {
+                if (targetPiece.color != position.turn and !inCheck) {
+                    addMove(moves, diagonalLeftMove);
+                }
             }
         } else if (position.enPassantSquare) |enPassantTarget| {
             if (enPassantTarget.column == square.column - 1 and enPassantTarget.row == square.row + oneStep) {
                 const leftPassant = Move{ .from = square, .to = diagonalLeftSquare };
-                if (!inCheckAfterMove(position, leftPassant)) {
-                    addMove(moves, leftPassant);
+                if (inCheckAfterMove(position, leftPassant)) |inCheck| {
+                    if (!inCheck) {
+                        addMove(moves, leftPassant);
+                    }
                 }
             }
         }
@@ -152,14 +158,18 @@ fn getPawnMoves(position: *Position, square: Square, moves: *Moves) void {
     if (moveInBounds(diagonalRightSquare)) {
         const diagonalRightMove = Move{ .from = square, .to = diagonalRightSquare };
         if (getBoard(position, diagonalRightSquare)) |targetPiece| {
-            if (targetPiece.color != position.turn and !inCheckAfterMove(position, diagonalRightMove)) {
-                addMove(moves, diagonalRightMove);
+            if (inCheckAfterMove(position, diagonalRightMove)) |inCheck| {
+                if (targetPiece.color != position.turn and !inCheck) {
+                    addMove(moves, diagonalRightMove);
+                }
             }
         } else if (position.enPassantSquare) |enPassantTarget| {
             if (enPassantTarget.column == square.column + 1 and enPassantTarget.row == square.row + oneStep) {
                 const rightPassant = Move{ .from = square, .to = diagonalRightSquare };
-                if (!inCheckAfterMove(position, rightPassant)) {
-                    addMove(moves, rightPassant);
+                if (inCheckAfterMove(position, rightPassant)) |inCheck| {
+                    if (!inCheck) {
+                        addMove(moves, rightPassant);
+                    }
                 }
             }
         }
@@ -176,8 +186,10 @@ fn getKnightMoves(position: *Position, square: Square, moves: *Moves) void {
                     continue;
                 }
             }
-            if (!inCheckAfterMove(position, move)) {
-                addMove(moves, move);
+            if (inCheckAfterMove(position, move)) |inCheck| {
+                if (!inCheck) {
+                    addMove(moves, move);
+                }
             }
         }
     }
@@ -188,15 +200,17 @@ fn getBRQMoves(position: *Position, square: Square, moves: *Moves, pieceMoves: [
         var targetSquare = Square{ .column = square.column + pieceMove.column, .row = square.row + pieceMove.row };
         while (moveInBounds(targetSquare)) {
             const move = Move{ .from = square, .to = targetSquare };
-            if (!inCheckAfterMove(position, move)) {
-                if (getBoard(position, targetSquare)) |targetPiece| {
-                    if (targetPiece.color != position.turn) {
-                        addMove(moves, move);
+            if (inCheckAfterMove(position, move)) |inCheck| {
+                if (!inCheck) {
+                    if (getBoard(position, targetSquare)) |targetPiece| {
+                        if (targetPiece.color != position.turn) {
+                            addMove(moves, move);
+                        }
+                        break;
                     }
-                    break;
+                    addMove(moves, move);
+                    targetSquare = Square{ .column = targetSquare.column + pieceMove.column, .row = targetSquare.row + pieceMove.row };
                 }
-                addMove(moves, move);
-                targetSquare = Square{ .column = targetSquare.column + pieceMove.column, .row = targetSquare.row + pieceMove.row };
             }
         }
     }
@@ -212,8 +226,10 @@ fn getKingMoves(position: *Position, square: Square, moves: *Moves) void {
                     continue;
                 }
             }
-            if (!inCheckAfterMove(position, move)) {
-                addMove(moves, move);
+            if (inCheckAfterMove(position, move)) |inCheck| {
+                if (!inCheck) {
+                    addMove(moves, move);
+                }
             }
         }
     }
@@ -224,8 +240,12 @@ fn getKingMoves(position: *Position, square: Square, moves: *Moves) void {
             if (squaresBetweenEmpty(position, longRookSquare, square)) {
                 const oneLeft = Move{ .from = square, .to = Square{ .column = square.column - 1, .row = square.row } };
                 const longCastle = Move{ .from = square, .to = Square{ .column = square.column - 2, .row = square.row }, .castlingRookFrom = longRookSquare, .castlingRookTo = Square{ .column = longRookSquare.column + 3, .row = longRookSquare.row } };
-                if (!inCheckAfterMove(position, oneLeft) and !inCheckAfterMove(position, longCastle)) {
-                    addMove(moves, longCastle);
+                if (inCheckAfterMove(position, oneLeft)) |inCheckAfterLeft| {
+                    if (inCheckAfterMove(position, longCastle)) |inCheckAfterLongCastle| {
+                        if (!inCheckAfterLeft and !inCheckAfterLongCastle) {
+                            addMove(moves, longCastle);
+                        }
+                    }
                 }
             }
         }
